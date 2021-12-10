@@ -67,8 +67,9 @@
           - 22
           cidr_ip: 0.0.0.0/0
           rule_desc: allow all on port 80
-          
-  - ec2:
+
+  - name: make instance       
+    ec2:
       key_name: "{{ ec2_key_name }}"
       instance_type: "{{ instance_type }}"
       image: "{{ instance_image }}"
