@@ -23,3 +23,13 @@
         Name: "{{vpc_name}}"
       tenancy: default
     register: result_vpc
+    
+  - name: Create subnet for database servers
+    ec2_vpc_subnet:
+      state: present
+      vpc_id: "{{ result_vpc }}"
+      cidr: "{{ subnet_cidr_block }}"
+      region: "{{ aws_region }}"
+      tags:
+        Name: webserver_Subnet
+    register: result_subnet
