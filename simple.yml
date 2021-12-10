@@ -20,16 +20,63 @@
       cidr_block: "{{ vpc_cidr_block }}"
       region: "{{ aws_region }}"
       tags:
-        Name: "{{vpc_name}}"
+        Name: "{{ vpc_name }}"
       tenancy: default
     register: result_vpc
     
   - name: Create subnet for database servers
     ec2_vpc_subnet:
       state: present
-      vpc_id: "{{ result_vpc }}"
+      vpc_id: "{{ result_vpc.vpc.id }}"
       cidr: "{{ subnet_cidr_block }}"
       region: "{{ aws_region }}"
       tags:
         Name: webserver_Subnet
     register: result_subnet
+    
+  - name: Create igw
+    ec2_vpc_igw:
+      vpc_id: "{{ result_vpc.vpc.id }}"
+      region: "{{ aws_region }}"
+      state: present
+    register: result_igw
+    
+  - name: Set up public subnet route table
+    ec2_vpc_route_table:
+      vpc_id: "{{ result_vpc.vpc.id }}"
+      region: "{{ aws_region }}"
+      tags:
+        Name: route
+      subnets:
+        - "{{ result_subnet.subnet.id }}"
+      routes:
+        - dest: 0.0.0.0/0
+          gateway_id: "{{ result_igw.gateway_id }}"
+    register: result_route
+    
+  - name: example using security group rule descriptions
+    ec2_group:
+      name: web-sg
+      description: sg with rule descriptions
+      vpc_id: "{{ result_vpc.vpc.id }}"
+      region: "{{ aws_region }}"
+      rules:
+        - proto: tcp
+          ports:
+          - 80
+          - 22
+          cidr_ip: 0.0.0.0/0
+          rule_desc: allow all on port 80
+          
+  - ec2:
+      key_name: "{{ ec2_key_name }}"
+      instance_type: "{{ instance_type }}"
+      image: "{{ instance_image }}"
+      wait: no
+      group: web-sg
+      count: 1
+      region: "{{ aws_region }}"
+      vpc_subnet_id: "{{ result_subnet.subnet.id }}"
+      assign_public_ip: yes
+      instance_tags:
+        Name: webserver
